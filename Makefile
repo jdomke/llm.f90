@@ -30,3 +30,4 @@ all: llm
 
 clean:
 	rm *.o
+	rm *.mod
