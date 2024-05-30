@@ -1,5 +1,5 @@
-FORTRAN = gfortran-13
-GCC = gcc-13
+FORTRAN = gfortran
+GCC = gcc
 
 .DEFAULT_GOAL := all
 
