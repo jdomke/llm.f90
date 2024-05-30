@@ -24,7 +24,7 @@ module arg_parse
 
                         !defaults 
                         arg_values%temperature = 0
-                        arg_values%model_file = "stories15M.bin"
+                        arg_values%model_file = ""
                         arg_values%prompt = ""
                         arg_values%verbose = .false.
                         arg_values%n = 256
