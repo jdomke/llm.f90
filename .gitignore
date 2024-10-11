@@ -10,3 +10,4 @@ massif*
 models
 *.swp
 !ssm/tokenizer.bin
+ggml-model-f32.gguf

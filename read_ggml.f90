@@ -39,6 +39,11 @@ end module
 
 module read_ggml
 
+        !<JJ
+        use zfp
+        use iso_c_binding
+        !>JJ
+
         use precision_module
         use mixed_type_module
         use weight_module
@@ -49,6 +54,17 @@ module read_ggml
         !integer :: file_pos
         integer(8) :: tensor_count
         logical, parameter :: verbose2 = .false.
+
+        !<JJ
+        interface
+            function zfp_decode_block_float_2(zfp_stream, zfp_block) bind(c)
+                use, intrinsic :: iso_c_binding, only: c_size_t, c_ptr, c_float
+                implicit none
+                integer(kind=c_size_t) :: zfp_decode_block_float_2
+                type(c_ptr), intent(in), value :: zfp_stream, zfp_block
+            end function zfp_decode_block_float_2
+        end interface
+        !>JJ
 contains
         subroutine load_ggml(filename, w, c, vocab, scores, token_lengths, v)
         character(len=*), intent(in) :: filename
@@ -97,6 +113,20 @@ contains
         
         integer :: head_size, kv_head_size
         
+        !<JJ
+        integer :: zfp_type = zFORp_type_float
+        type(zFORp_field) :: field
+        integer(kind=8) :: bitstream_offset_bytes, b
+        character, dimension(:), allocatable, target :: buffer
+        type(zFORp_bitstream) :: queried_bitstream
+        real(kind=8) :: rate_result
+        type(zFORp_stream) :: stream
+        real(kind=wp), allocatable, target :: wtmp(:,:)
+        real(kind=wp), target :: decompressed_block(1:4,1:4)
+        type(c_ptr) :: zfp_stream_c_ptr
+        integer(c_size_t) :: ret
+        !>JJ
+
         allocate(character(len=max_len) :: tempstr)
         verbose = v
         
@@ -248,6 +278,46 @@ contains
                 !print *, temp_gt%ndims
                 !print *, w%token_embedding_table(1:10,1)
                 !print *, "embed sum: ", sum(w%token_embedding_table(1:10,1:10))
+
+                !<JJ
+                ! tmp buffer because cannot c_loc the stupid tokens
+                allocate(wtmp(size(w%token_embedding_table, 1), size(w%token_embedding_table, 2)))
+                wtmp = w%token_embedding_table
+                ! setup zfp_field
+                field = zFORp_field_2d(c_loc(wtmp), zfp_type, size(wtmp, 1), size(wtmp, 2))
+                ! setup zfp_stream
+                allocate(buffer(size(wtmp)))
+                stream = zFORp_stream_open( &
+                    zFORp_bitstream_stream_open(c_loc(buffer), &
+                                                1_8*size(buffer)))
+                !call zFORp_stream_set_reversible(stream)
+                rate_result = zFORp_stream_set_rate(stream, 8.0_8, zfp_type, 2, 0)
+                queried_bitstream = zFORp_stream_bit_stream(stream)
+                ! compress
+                bitstream_offset_bytes = zFORp_compress(stream, field)
+                write(*, *) "After compression, bitstream offset at ", bitstream_offset_bytes
+                call zFORp_stream_rewind(stream)
+                !! decompress
+                !call zFORp_field_set_pointer(field, c_loc(wtmp))
+                !bitstream_offset_bytes = zFORp_decompress(stream, field)
+                !write(*, *) "After decompression, bitstream offset at ", bitstream_offset_bytes
+                !write(*,*) 'IN', w%token_embedding_table(1:4,1:4)
+                !write(*,*) 'OUT', wtmp(1:4,1:4)
+                !
+                zfp_stream_c_ptr = zFORp_get_zfp_stream(stream)
+                !both multiple of 4: write(*,*) size(w%token_embedding_table, 1), size(w%token_embedding_table, 2)
+                !do b=1, zFORp_field_blocks(field)
+                !    ret = zfp_decode_block_float_2(zfp_stream_c_ptr, &
+                !        c_loc(decompressed_block))
+                !    write(*,*) decompressed_block
+                !enddo
+                do j=1, size(w%token_embedding_table, 2), 4
+                    do i=1, size(w%token_embedding_table, 1), 4
+                      ret = zfp_decode_block_float_2(zfp_stream_c_ptr, c_loc(decompressed_block))
+                      w%token_embedding_table(i:i+3,j:j+3) = decompressed_block
+                    enddo
+                enddo
+                !>JJ
 
                 allocate(w%rms_att_weight(emb_length,num_layers))
                 do i = 1,num_layers

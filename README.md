@@ -22,5 +22,5 @@ make -B
 pushd zfp
 rm -rf build && mkdir build && cd build && cmake .. -DBUILD_ZFORP=1 -DCMAKE_BUILD_TYPE=Debug && make
 popd
-make -B OPT=''
+make -B OPT='-O0 -g'
 ```
