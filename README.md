@@ -5,8 +5,8 @@ git clone --recurse-submodules https://github.com/jdomke/llm.f90.git
 
 # Building release
 ```
-pushd zfp
-rm -rf build && mkdir build && cd build && cmake .. -DBUILD_ZFORP=1 -DCMAKE_BUILD_TYPE=Release && make
+pushd zfp && rm -rf build && mkdir build
+pushd build && cmake .. -DBUILD_ZFORP=1 -DCMAKE_BUILD_TYPE=Release && make && popd
 popd
 make -B
 ```
@@ -19,8 +19,11 @@ make -B
 
 # Building debug
 ```
-pushd zfp
-rm -rf build && mkdir build && cd build && cmake .. -DBUILD_ZFORP=1 -DCMAKE_BUILD_TYPE=Debug && make
+pushd zfp && rm -rf build && mkdir build
+pushd build && cmake .. -DBUILD_ZFORP=1 -DCMAKE_BUILD_TYPE=Debug && make && popd
 popd
 make -B OPT='-O0 -g'
 ```
+
+# old readme
+[here](org.readme.md)
